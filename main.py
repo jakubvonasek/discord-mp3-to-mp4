@@ -49,27 +49,28 @@ class Client(discord.Client):
                 elif attachment.filename.endswith('.mp3'):
                     mp3_file = attachment
 
-            # If both an image and mp3 file are found, process them
-            if image_file and mp3_file:
+            # Set default image if no image is provided
+            if not image_file:
+                image_path = os.path.join(working_dir, 'default.png')  # Default image
+                # Trim the audio to 50 seconds if it's longer - instagram mode
+                if audio_clip.duration > 50:
+                    audio_clip = audio_clip.subclip(0, 50)
+            else:
+                image_path = os.path.join(working_dir, image_file.filename)
+                await image_file.save(image_path)
+
+            # If mp3 file is provided, process it
+            if mp3_file:
                 try:
-                    # Save the files locally
-                    image_path = os.path.join(working_dir, image_file.filename)
                     mp3_path = os.path.join(working_dir, mp3_file.filename)
                     output_path = os.path.join(working_dir, f"{message.author.id}.mp4")
 
-                    await image_file.save(image_path)
                     await mp3_file.save(mp3_path)
 
                     # Use moviepy to check the duration of the audio file
                     audio_clip = AudioFileClip(mp3_path)
-                    
-                    # Check if the audio is longer than 5 minutes (300 seconds)
-                    if audio_clip.duration > 300:
-                        await message.channel.send("The audio file is too long. Please upload an audio file shorter than 5 minutes.")
-                        audio_clip.close()  # Close the audio clip before returning
-                        return
 
-                    # Create video with the image and the audio
+                    # Create video with the image and the trimmed audio
                     image_clip = ImageClip(image_path).set_duration(audio_clip.duration)
                     video = image_clip.set_audio(audio_clip)
 
@@ -92,7 +93,7 @@ class Client(discord.Client):
                         image_clip.close()
 
                     # Cleanup: Remove the saved files
-                    if os.path.exists(image_path):
+                    if os.path.exists(image_path) and image_file:
                         os.remove(image_path)
                     if os.path.exists(mp3_path):
                         os.remove(mp3_path)
