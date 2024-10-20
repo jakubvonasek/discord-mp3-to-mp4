@@ -40,14 +40,14 @@ class Client(discord.Client):
         # Check if the message is from the designated scanned channel
         if message.channel.name == scanned_channel:
             image_file = None
-            mp3_file = None
+            audio_file = None
 
-            # Loop through the attachments to find .jpg, .png, and .mp3 files
+            # Loop through the attachments to find .jpg, .png, and .mp3/.flac files
             for attachment in message.attachments:
                 if attachment.filename.endswith(('.jpg', '.png')):  # Support both .jpg and .png
                     image_file = attachment
-                elif attachment.filename.endswith('.mp3'):
-                    mp3_file = attachment
+                elif attachment.filename.endswith(('.mp3', '.flac')):  # Support both .mp3 and .flac
+                    audio_file = attachment
 
             # Notify the user that the video is being processed
             await message.channel.send("Your video is being made. Please wait...")
@@ -61,16 +61,16 @@ class Client(discord.Client):
                 image_path = os.path.join(working_dir, image_file.filename)
                 await image_file.save(image_path)
 
-            # If mp3 file is provided, process it
-            if mp3_file:
+            # If audio file is provided, process it
+            if audio_file:
                 try:
-                    mp3_path = os.path.join(working_dir, mp3_file.filename)
+                    audio_path = os.path.join(working_dir, audio_file.filename)
                     output_path = os.path.join(working_dir, f"{message.author.id}.mp4")
 
-                    await mp3_file.save(mp3_path)
+                    await audio_file.save(audio_path)
 
                     # Use moviepy to check the duration of the audio file
-                    audio_clip = AudioFileClip(mp3_path)
+                    audio_clip = AudioFileClip(audio_path)
 
                     # Trim the audio to 50 seconds if it's longer - Instagram mode
                     if audio_clip.duration > 50:
@@ -82,8 +82,14 @@ class Client(discord.Client):
                     image_clip = ImageClip(image_path).set_duration(audio_clip.duration)
                     video = image_clip.set_audio(audio_clip)
 
-                    # Save the resulting video file with AAC as the audio codec
-                    video.write_videofile(output_path, codec="libx264", audio_codec="aac", fps=30)
+                    # Use FLAC codec if the audio is in FLAC format
+                    if audio_file.filename.endswith('.flac'):
+                        audio_codec = 'flac'
+                    else:
+                        audio_codec = 'aac'
+
+                    # Save the resulting video file with the selected audio codec
+                    video.write_videofile(output_path, codec="libx264", audio_codec=audio_codec, fps=30)
 
                     # Send the created video back to the channel
                     await message.channel.send(file=discord.File(output_path))
@@ -103,8 +109,8 @@ class Client(discord.Client):
                     # Cleanup: Remove the saved files
                     if os.path.exists(image_path) and image_file:
                         os.remove(image_path)
-                    if os.path.exists(mp3_path):
-                        os.remove(mp3_path)
+                    if os.path.exists(audio_path):
+                        os.remove(audio_path)
                     if os.path.exists(output_path):
                         os.remove(output_path)
 
