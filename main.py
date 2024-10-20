@@ -3,16 +3,31 @@ import os
 from moviepy.editor import *
 from dotenv import load_dotenv
 import json
+from flask import Flask
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Set the working directory where files will be stored temporarily
-working_dir = json.load(open('conf.json'))['working_dir']
-scanned_channel = json.load(open('conf.json'))['scanned_channel']
+# Load configuration from conf.json
+config = json.load(open('conf.json'))
+working_dir = config['working_dir']
+scanned_channel = config['scanned_channel']
+
 # Ensure the working directory exists
 os.makedirs(working_dir, exist_ok=True)
 
+# Initialize Flask app for the basic web page
+app = Flask(__name__)
+
+@app.route('/')
+def hello():
+    return "Hello! The Discord bot is running."
+
+# Run Flask server in a separate thread
+def run_flask():
+    app.run(host='0.0.0.0', port=5000)
+
+# Define the Discord bot client
 class Client(discord.Client):
     async def on_ready(self):
         print(f'{self.user} is now running!')
@@ -22,7 +37,7 @@ class Client(discord.Client):
         if message.author == self.user:
             return
 
-        # Check if the message is from the "bot-talk" channel
+        # Check if the message is from the designated scanned channel
         if message.channel.name == scanned_channel:
             image_file = None
             mp3_file = None
@@ -91,5 +106,10 @@ intents.message_content = True
 # Initialize the bot client with the specified intents
 client = Client(intents=intents)
 
-# Run the bot using the token from your environment variables
+# Run Flask server in a separate thread
+import threading
+flask_thread = threading.Thread(target=run_flask)
+flask_thread.start()
+
+# Run the Discord bot
 client.run(os.getenv('DISCORD_TOKEN'))
