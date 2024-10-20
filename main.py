@@ -49,12 +49,14 @@ class Client(discord.Client):
                 elif attachment.filename.endswith('.mp3'):
                     mp3_file = attachment
 
+            # Notify the user that the video is being processed
+            await message.channel.send("Your video is being made. Please wait...")
+
             # Set default image if no image is provided
             if not image_file:
                 image_path = os.path.join(working_dir, 'default.png')  # Default image
-                # Trim the audio to 50 seconds if it's longer - instagram mode
-                if audio_clip.duration > 50:
-                    audio_clip = audio_clip.subclip(0, 50)
+                # Notify the user about the Instagram preset
+                await message.channel.send("Only one resource provided. Defaulted to Instagram preset.")
             else:
                 image_path = os.path.join(working_dir, image_file.filename)
                 await image_file.save(image_path)
@@ -69,6 +71,12 @@ class Client(discord.Client):
 
                     # Use moviepy to check the duration of the audio file
                     audio_clip = AudioFileClip(mp3_path)
+
+                    # Trim the audio to 50 seconds if it's longer - Instagram mode
+                    if audio_clip.duration > 50:
+                        audio_clip = audio_clip.subclip(0, 50)
+                        # Notify user about Instagram preset due to audio duration limit
+                        await message.channel.send("Audio trimmed to Instagram preset (50 seconds).")
 
                     # Create video with the image and the trimmed audio
                     image_clip = ImageClip(image_path).set_duration(audio_clip.duration)
